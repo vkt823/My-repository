@@ -1,2 +1,2 @@
 def mynewfunction():
-    x**3
+    return x**3
