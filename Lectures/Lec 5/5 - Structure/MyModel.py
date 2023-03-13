@@ -1,5 +1,5 @@
-import structure_solve
-import structure_simulate
+import solve
+import simulate
 
 class MyModelClass:
 
