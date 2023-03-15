@@ -31,6 +31,8 @@ class ProductionEconomyClass():
         """ utility of workers """
         
         par = self.par
+        #CHR: You unpack parameters inside the code instead of
+        #  using it as an input
 
         return np.log(c+par.kappa)-par.omega*l**par.eta
 
