@@ -1,5 +1,3 @@
-
-
 from types import SimpleNamespace
 
 import numpy as np
@@ -10,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class HouseholdSpecializationModelClass:
 
-    def __init__(self):
+    def __init__(self, alpha,sigma):
         """ setup model """
 
         # a. create namespaces
@@ -24,8 +22,8 @@ class HouseholdSpecializationModelClass:
         par.omega = 0.5 
 
         # c. household production
-        par.alpha = 0.5
-        par.sigma = 1.0
+        par.alpha = alpha
+        par.sigma = sigma
 
         # d. wages
         par.wM = 1.0
@@ -37,10 +35,10 @@ class HouseholdSpecializationModelClass:
         par.beta1_target = -0.1
 
         # f. solution
-        sol.LM_vec = np.zeros(par.wF_vec.size)
-        sol.HM_vec = np.zeros(par.wF_vec.size)
-        sol.LF_vec = np.zeros(par.wF_vec.size)
-        sol.HF_vec = np.zeros(par.wF_vec.size)
+        sol.LM_vec = np.zeros(par.wF_vec.size) #Hours worked by man
+        sol.HM_vec = np.zeros(par.wF_vec.size) #wage by man
+        sol.LF_vec = np.zeros(par.wF_vec.size) #hours by female
+        sol.HF_vec = np.zeros(par.wF_vec.size) #wage female
 
         sol.beta0 = np.nan
         sol.beta1 = np.nan
@@ -54,26 +52,30 @@ class HouseholdSpecializationModelClass:
         # a. consumption of market goods
         C = par.wM*LM + par.wF*LF
 
-        # b. home production #Changed 16. march. based on Jonas' formula
+        # b. home production
+        
         if par.sigma == 0:
-            H=np.fmin(HM,HF)
+            H = np.fmin(HM,HF)
         elif par.sigma == 1:
             H = HM**(1-par.alpha)*HF**par.alpha
         else:
-            H= ((1-par.alpha)*HM**((par.sigma-1)/par.sigma)+
-                par.alpha*HF**((par.sigma-1)/par.sigma))**(par.sigma/(par.sigma-1))
+            H = ((1-par.alpha)*HM**((par.sigma-1)/par.sigma)+par.alpha*HF**((par.sigma-1)/par.sigma))**(par.sigma/(par.sigma-1))
 
         # c. total consumption utility
         Q = C**par.omega*H**(1-par.omega)
         utility = np.fmax(Q,1e-8)**(1-par.rho)/(1-par.rho)
+        #CHR: this is the first part of the utility function
+
 
         # d. disutlity of work
         epsilon_ = 1+1/par.epsilon
         TM = LM+HM
         TF = LF+HF
         disutility = par.nu*(TM**epsilon_/epsilon_+TF**epsilon_/epsilon_)
+        #CHR: this is the second part of the utility function
         
         return utility - disutility
+        #Chr: returns the utility function
 
     def solve_discrete(self,do_print=False):
         """ solve model discretely """
@@ -83,16 +85,18 @@ class HouseholdSpecializationModelClass:
         opt = SimpleNamespace()
         
         # a. all possible choices
-        x = np.linspace(0,24,49)
+        x = np.linspace(0,24,49) #X takes a value for every half an hour of the day
         LM,HM,LF,HF = np.meshgrid(x,x,x,x) # all combinations
     
-        LM = LM.ravel() # vector
+        LM = LM.ravel() 
         HM = HM.ravel()
         LF = LF.ravel()
         HF = HF.ravel()
-
+        # meshrgrid makes fourdimensonal arrays, where each array is repeated-> ravel makes them into 1 dimensional vector
+        
         # b. calculate utility
         u = self.calc_utility(LM,HM,LF,HF)
+        
     
         # c. set to minus infinity if constraint is broken
         I = (LM+HM > 24) | (LF+HF > 24) # | is "or"
@@ -100,20 +104,28 @@ class HouseholdSpecializationModelClass:
     
         # d. find maximizing argument
         j = np.argmax(u)
+        #CHR: gemmer index for bedste utility
         
         opt.LM = LM[j]
         opt.HM = HM[j]
         opt.LF = LF[j]
         opt.HF = HF[j]
+        #indsætter index for bedste utility
 
         opt.HF_HM = HF[j]/HM[j]
 
         # e. print
         if do_print:
             for k,v in opt.__dict__.items():
-                print(f'{k} = {v:6.4f}')
+                print(f'{k} = {v:1.1f}')
 
         return opt
+    
+    def interactive_figure(self,LM,HM,LF,HF):
+        par=self.par
+
+        
+
 
     def solve(self,do_print=False):
         """ solve model continously """

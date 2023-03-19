@@ -73,7 +73,7 @@ class Agent:
         for key, value in kwargs.items():
             setattr(self,key,value) # like self.key = value
 
-        #CHR: need this last for loop to make kwargs work
+        #CHR: need this last for-loop to make kwargs work
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!print of class!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
