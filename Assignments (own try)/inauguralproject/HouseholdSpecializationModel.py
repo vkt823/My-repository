@@ -1,5 +1,3 @@
-
-
 from types import SimpleNamespace
 
 import numpy as np
@@ -9,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 class HouseholdSpecializationModelClass:
-
+    
     def __init__(self):
         """ setup model """
 
@@ -31,6 +29,7 @@ class HouseholdSpecializationModelClass:
         par.wM = 1.0
         par.wF = 1.0
         par.wF_vec = np.linspace(0.8,1.2,5)
+        par.log_wF_vec = np.log(np.linspace(0.8,1.2,5))
 
         # e. targets
         par.beta0_target = 0.4
@@ -54,7 +53,8 @@ class HouseholdSpecializationModelClass:
         # a. consumption of market goods
         C = par.wM*LM + par.wF*LF
 
-        # b. home production #Changed 16. march. based on Jonas' formula
+        # b. home production 
+        #Based on the value of sigma we use the specified function for H
         if par.sigma == 0:
             H=np.fmin(HM,HF)
         elif par.sigma == 1:
@@ -105,8 +105,7 @@ class HouseholdSpecializationModelClass:
         opt.HM = HM[j]
         opt.LF = LF[j]
         opt.HF = HF[j]
-
-        opt.HF_HM = HF[j]/HM[j]
+        opt.HF_HM = HF[j]/HM[j] #Calculate ratio
 
         # e. print
         if do_print:
@@ -115,15 +114,63 @@ class HouseholdSpecializationModelClass:
 
         return opt
 
-    def solve(self,do_print=False):
-        """ solve model continously """
-
-        pass    
-
-    def solve_wF_vec(self,discrete=False):
+    def solve_wF_vec(self, discrete=False):
         """ solve model for vector of female wages """
 
-        pass
+        par = self.par
+        sol = self.sol
+
+        # We create a vector to store the log ratio of HF/HM for the different log ratios of wF/wM
+        log_HF_HM = np.zeros(par.wF_vec.size)
+
+        # We loop over each value of wF in wF_vec
+        for i, wF in enumerate(par.wF_vec):
+            par.wF = wF # Set the new value of wF
+            
+            # Solve the model
+            if discrete==True:
+                opt = self.solve_discrete()
+                log_HF_HM[i] = np.log(opt.HF_HM)
+            else:
+                opt = self.solve_continously()
+                log_HF_HM[i] = np.log(opt.HF_HM)
+
+        par.wF = 1.0
+        #We return wF to original value
+
+        return log_HF_HM #Return the vector of log ratio of HF/HM
+    
+    #We need negative value of utility function. 
+    def utility_function(self, L): 
+        return -self.calc_utility(L[0],L[1],L[2],L[3])
+    
+    def solve_continously(self):
+        #Calling the values from previous
+        par = self.par
+        opt = SimpleNamespace()
+        
+
+        #Define the bounds and constraints. 
+        constraint_men = ({'type': 'ineq', 'fun': lambda L:  24-L[0]-L[1]})
+        constraint_women = ({'type': 'ineq', 'fun': lambda L:  24-L[2]-L[3]})
+        bounds=((0,24),(0,24), (0,24), (0,24))
+        
+        # Initial guess. Not important
+        initial_guess = [12,12,12,12]
+
+        # Call optimizer
+        solution_cont = optimize.minimize(
+        self.utility_function, initial_guess,
+        method='SLSQP', bounds=bounds, constraints=(constraint_men, constraint_women))
+        
+        # Save results
+        opt.LM = solution_cont.x[0]
+        opt.HM = solution_cont.x[1]
+        opt.LF = solution_cont.x[2]
+        opt.HF = solution_cont.x[3]
+        opt.HF_HM = solution_cont.x[3]/solution_cont.x[1] #calculate ratio
+        
+        return opt
 
     def run_regression(self):
         """ run regression """

@@ -107,6 +107,12 @@ class Agent:
 
 
 
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!output!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!double for loop and simple print!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-#SHouldn't we output with the sol vectors??
+hsm = model.HouseholdSpecializationModelClass()
+for sigma in np.linspace(0.5,1.5,3):
+    hsm.par.sigma=sigma
+    for alpha in np.linspace(0.25,0.75,3):
+        hsm.par.alpha = alpha
+        dsol = hsm.solve_discrete()
+        print(f'HF/HM: {dsol.HF_HM:1.1f} for alpha and sigma: {hsm.par.alpha, hsm.par.sigma}')
