@@ -14,6 +14,7 @@ class HouseholdSpecializationModelClass:
         # a. create namespaces
         par = self.par = SimpleNamespace()
         sol = self.sol = SimpleNamespace()
+        opt = self.opt = SimpleNamespace()
 
         # b. preferences
         par.rho = 2.0
@@ -29,8 +30,7 @@ class HouseholdSpecializationModelClass:
         par.wM = 1.0
         par.wF = 1.0
         par.wF_vec = np.linspace(0.8,1.2,5)
-        par.log_wF_vec = np.log(np.linspace(0.8,1.2,5))
-
+    
         # e. targets
         par.beta0_target = 0.4
         par.beta1_target = -0.1
@@ -80,7 +80,7 @@ class HouseholdSpecializationModelClass:
         
         par = self.par
         sol = self.sol
-        opt = SimpleNamespace()
+        opt = self.opt
         
         # a. all possible choices
         x = np.linspace(0,24,49)
@@ -113,12 +113,45 @@ class HouseholdSpecializationModelClass:
                 print(f'{k} = {v:6.4f}')
 
         return opt
+    
+    #We need negative value of utility function. 
+    def utility_function(self, L): 
+        return -self.calc_utility(L[0],L[1],L[2],L[3])
+    
+    def solve_continously(self):
+        #Calling the values from previous
+        par = self.par
+        opt = self.opt
+        
 
+        #Define the bounds and constraints. 
+        constraint_men = ({'type': 'ineq', 'fun': lambda L:  24-L[0]-L[1]})
+        constraint_women = ({'type': 'ineq', 'fun': lambda L:  24-L[2]-L[3]})
+        bounds=((0,24),(0,24), (0,24), (0,24))
+        
+        # Initial guess. Not important
+        initial_guess = [6,6,6,6]
+
+        # Call optimizer
+        solution_cont = optimize.minimize(
+        self.utility_function, initial_guess,
+        method='SLSQP', bounds=bounds, constraints=(constraint_men, constraint_women))
+        
+        # Save results
+        opt.LM = solution_cont.x[0]
+        opt.HM = solution_cont.x[1]
+        opt.LF = solution_cont.x[2]
+        opt.HF = solution_cont.x[3]
+        opt.HF_HM = solution_cont.x[3]/solution_cont.x[1] #calculate ratio
+        
+        return opt
+    
     def solve_wF_vec(self, discrete=False):
         """ solve model for vector of female wages """
 
         par = self.par
         sol = self.sol
+        opt = self.opt
 
         # We create a vector to store the log ratio of HF/HM for the different log ratios of wF/wM
         log_HF_HM = np.zeros(par.wF_vec.size)
@@ -139,51 +172,15 @@ class HouseholdSpecializationModelClass:
         #We return wF to original value
 
         return log_HF_HM #Return the vector of log ratio of HF/HM
-    
-    #We need negative value of utility function. 
-    def utility_function(self, L): 
-        return -self.calc_utility(L[0],L[1],L[2],L[3])
-    
-    def solve_continously(self):
-        #Calling the values from previous
-        par = self.par
-        opt = SimpleNamespace()
-        
-
-        #Define the bounds and constraints. 
-        constraint_men = ({'type': 'ineq', 'fun': lambda L:  24-L[0]-L[1]})
-        constraint_women = ({'type': 'ineq', 'fun': lambda L:  24-L[2]-L[3]})
-        bounds=((0,24),(0,24), (0,24), (0,24))
-        
-        # Initial guess. Not important
-        initial_guess = [12,12,12,12]
-
-        # Call optimizer
-        solution_cont = optimize.minimize(
-        self.utility_function, initial_guess,
-        method='SLSQP', bounds=bounds, constraints=(constraint_men, constraint_women))
-        
-        # Save results
-        opt.LM = solution_cont.x[0]
-        opt.HM = solution_cont.x[1]
-        opt.LF = solution_cont.x[2]
-        opt.HF = solution_cont.x[3]
-        opt.HF_HM = solution_cont.x[3]/solution_cont.x[1] #calculate ratio
-        
-        return opt
 
     def run_regression(self):
         """ run regression """
 
         par = self.par
-        sol = self.sol
+        opt = self.opt
+
 
         x = np.log(par.wF_vec)
-        y = np.log(sol.HF_vec/sol.HM_vec)
+        y = self.solve_wF_vec(discrete=False)
         A = np.vstack([np.ones(x.size),x]).T
-        sol.beta0,sol.beta1 = np.linalg.lstsq(A,y,rcond=None)[0]
-    
-    def estimate(self,alpha=None,sigma=None):
-        """ estimate alpha and sigma """
-
-        pass
+        opt.beta0,opt.beta1 = np.linalg.lstsq(A,y,rcond=None)[0]
