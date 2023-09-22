@@ -4,7 +4,7 @@ from tabulate import tabulate
 
 
 
-def estimate(y: np.ndarray, x: np.ndarray, transform='', N=None, T=None) -> dict:
+def estimate(y: np.ndarray, x: np.ndarray, transform='', N=None, T=None) -> list:
     """Takes some np.arrays and estimates regular OLS, FE or FD.
     
 
@@ -23,14 +23,14 @@ def estimate(y: np.ndarray, x: np.ndarray, transform='', N=None, T=None) -> dict
         dict: A dictionary with the results from the ols-estimation.
     """
     
-    b_hat =  la.inv(x.T@x)@x.T@y
+    b_hat = est_ols(y, x)
     resid = y - x@b_hat
     SSR = resid.T@resid
-    SST = (y-np.mean(y)).T@(y-np.mean(y))
-    R2 = 1-SSR/SST 
+    SST = (y - np.mean(y)).T@(y - np.mean(y))
+    R2 = 1 - SSR/SST
 
     sigma, cov, se = variance(transform, SSR, x, N, T)
-    t_values =  b_hat/se
+    t_values = b_hat/se
     
     names = ['b_hat', 'se', 'sigma', 't_values', 'R2', 'cov']
     results = [b_hat, se, sigma, t_values, R2, cov]
@@ -47,7 +47,9 @@ def est_ols( y: np.ndarray, x: np.ndarray) -> np.ndarray:
     Returns:
         np.array: Estimated beta hats.
     """
-    return   la.inv(x.T@x)@x.T@y
+    return la.inv(x.T@x)@(x.T@y)
+    # alternatively and more efficiently: 
+    # return la.solve(x.T@x, x.T@y)
 
 def variance( 
         transform: str, 
@@ -75,21 +77,19 @@ def variance(
     """
 
     # Number of coefficients
-    K=x.shape[1] #number of columns in x
+    K=x.shape[1]
 
-    if transform in ('', 're'):
+    if transform in ('', 're', 'fd'):
           sigma = SSR/(N*T-K)
-    elif transform.lower() == 'fd':
-        sigma = SSR/(N*(T-1)-K)
     elif transform.lower() == 'fe':
-          sigma = SSR/(N*T-(N+K))
+          sigma = SSR/(N*T-N-K) 
     elif transform.lower() in ('be'): 
-          sigma = None
+          sigma = SSR/(N-K) 
     else:
         raise Exception('Invalid transform provided.')
     
-    cov =  sigma*la.inv(x.T@x)
-    se =  np.sqrt(np.diag(cov)).reshape(-1, 1)
+    cov = sigma*la.inv(x.T@x)
+    se = np.sqrt(cov.diagonal()).reshape(-1, 1)
     return sigma, cov, se
 
 
@@ -134,17 +134,17 @@ def print_table(labels: tuple, results: dict, headers=None, title="Results", **k
     # Print data for model specification
     print(f"R² = {results.get('R2').item():.3f}")
     print(f"σ² = {results.get('sigma').item():.3f}")
-
-
+    
+    
 def perm( Q_T: np.ndarray, A: np.ndarray, t=0) -> np.ndarray:
     """Takes a transformation matrix and performs the transformation on 
     the given vector or matrix.
 
     Args:
-        Q_T (np.ndarray): The transformation matrix. Needs to have the same
+        Q_T (np.array): The transformation matrix. Needs to have the same
         dimensions as number of years a person is in the sample.
         
-        A (np.ndarray): The vector or matrix that is to be transformed. Has
+        A (np.array): The vector or matrix that is to be transformed. Has
         to be a 2d array.
         
         t (int, optional): The number of years an individual is in the sample.
@@ -152,7 +152,7 @@ def perm( Q_T: np.ndarray, A: np.ndarray, t=0) -> np.ndarray:
     Returns:
         np.array: Returns the transformed vector or matrix.
     """
-    # We can infer t from the shape of the transformation matrix.
+    # We can infer T from the shape of the transformation matrix.
     if t==0:
         t = Q_T.shape[1]
 
