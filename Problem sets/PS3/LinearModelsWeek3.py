@@ -38,8 +38,10 @@ def estimate(
     sigma2, cov, se = variance(transform, SSR, x, T)
     t_values = b_hat/se
     
-    names = ['b_hat', 'se', 'sigma2', 't_values', 'R2', 'cov']
-    results = [b_hat, se, sigma2, t_values, R2, cov]
+    se_robust = robust_variance(residual, x)
+
+    names = ['b_hat', 'se', 'se_robust', 'sigma2', 't_values', 'R2', 'cov']
+    results = [b_hat, se, se_robust sigma2, t_values, R2, cov]
     return dict(zip(names, results))
 
     
@@ -87,18 +89,18 @@ def variance(
 
     # Store n and k, used for DF adjustments.
     K = x.shape[1]
-    if transform in ('', 'fd', 'be'):
-        N = x.shape[0]
+    if transform in ('be'):
+        N = x.shape[0] #shape of number of rows -> number of observations
     else:
-        N = x.shape[0]/T
+        N = x.shape[0]/T #rows devided by T -> number of individuals
 
     # Calculate sigma2
-    if transform in ('', 'fd', 'be'):
-        sigma2 = (np.array(SSR/(N - K)))
+    if transform in ('', 'fd', 're'):
+        sigma2 = (np.array(SSR/(N*T - K)))
     elif transform.lower() == 'fe':
         sigma2 = np.array(SSR/(N * (T - 1) - K))
-    elif transform.lower() == 're':
-        sigma2 = np.array(SSR/(T * N - K))
+    elif transform.lower() == 'be':
+        sigma2 = np.array(SSR/(N - K))
     else:
         raise Exception('Invalid transform provided.')
     
@@ -106,6 +108,13 @@ def variance(
     se = np.sqrt(cov.diagonal()).reshape(-1, 1)
     return sigma2, cov, se
 
+def robust_variance(residual: np.ndarray, x: np.ndarray) -> nd.array:
+
+    bread = la.inv(x.t@x)
+    meat =x.T@residual@residual.T@x
+
+    avar_robust = bread@meat@bread
+    return avar_robust
 
 def print_table(
         labels: tuple,
