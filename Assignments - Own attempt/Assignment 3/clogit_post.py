@@ -62,6 +62,9 @@ def loglikelihood(theta, y, x):
     ll_i =   np.sum(temp, axis = 1) #
     return ll_i 
 
+
+
+
 def choice_prob(theta, x):
     '''choice_prob(): Computes the (N,J) matrix of choice probabilities 
     Args. 
@@ -75,7 +78,31 @@ def choice_prob(theta, x):
     N, J, K = x.shape
     
     # deterministic utility 
-    v = util(theta, x)
+    v = util(theta, x).astype(np.float64)
+
+    # denominator 
+    denom = np.exp(v).sum(axis=1, keepdims=True) # (N,1)
+    
+    # Conditional choice probabilites
+    ccp = np.exp(v) / denom
+    
+    return ccp
+
+
+def choice_prob2(theta, x):
+    '''choice_prob(): Computes the (N,J) matrix of choice probabilities 
+    Args. 
+        theta: (K,) vector of parameters 
+        x: (N,J,K) matrix of covariates 
+    
+    Returns
+        ccp: (N,J) matrix of probabilities 
+    '''
+    assert theta.ndim == 1, f'theta should have ndim == 1, got {theta.ndim}'
+    N, J, K = x.shape
+    
+    # deterministic utility 
+    v = x @ theta
     
     # denominator 
     denom = np.exp(v).sum(axis=1, keepdims=True) # (N,1)
@@ -84,6 +111,7 @@ def choice_prob(theta, x):
     ccp = np.exp(v) / denom
     
     return ccp
+
 
 def sim_data(N: int, theta: np.ndarray, J: int) -> tuple:
     """Takes input values N and J to specify the shape of the output data. The

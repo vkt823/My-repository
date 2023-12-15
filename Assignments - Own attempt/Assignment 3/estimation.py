@@ -42,7 +42,7 @@ def estimate(
 
     # call optimizer
     result = optimize.minimize(Q, theta0, options=options, **kwargs)
-    
+    log_like = -np.sum(q(theta0, y, x))
     cov, se = variance(q, y, x, result, cov_type)   
 
     # collect output in a dict 
@@ -54,7 +54,8 @@ def estimate(
         'success':  result.success, # bool, whether convergence was succesful 
         'nit':      result.nit, # no. algorithm iterations 
         'nfev':     result.nfev, # no. function evaluations 
-        'fun':      result.fun # function value at termination 
+        'fun':      result.fun, # function value at termination 
+        'log_like': log_like # negative log likelihood
     }
     return res
 
