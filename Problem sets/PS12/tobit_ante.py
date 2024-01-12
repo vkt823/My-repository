@@ -23,7 +23,7 @@ def loglikelihood(theta, y, x):
     Phi = norm.cdf(xb/sig) # fill in
     Phi = np.clip(Phi, 1e-8, 1.-1e-8)
 
-    ll =  (y==0)*np.log(1-Phi)+(y>0)*np.log(1/sig*phi)  # fill in, HINT: you can get indicator functions by using (y>0) and (y==0)
+    ll =  (y==0.0)*np.log(1.0-Phi)+(y>0)*np.log(1/sig*phi)  # fill in, HINT: you can get indicator functions by using (y>0) and (y==0)
 
     return ll
 
@@ -34,10 +34,10 @@ def starting_values(y,x):
     Returns
         theta: K+1 array, where theta[:K] are betas, and theta[-1] is sigma (not squared)
     '''
-    N,K = x.shape
-    b_ols = la.inv(x.T@x)@x.T@y
-    res = y - x@b_ols # fill in
-    sig2hat = (res.T @res)/(N-K) # fill in
+    N,K = x.shape 
+    b_ols = np.linalg.solve(x.T@x, x.T@y)
+    res = y - x@b_ols 
+    sig2hat = 1./(N-K) * np.dot(res, res)
     sighat = np.sqrt(sig2hat) # our convention is that we estimate sigma, not sigma squared
     theta0 = np.append(b_ols, sighat)
     return theta0 
@@ -53,17 +53,19 @@ def predict(theta, x):
     sig = theta[-1]
 
     xb = x@b
+
     cdf = norm.cdf(xb/sig)
     pdf = norm.pdf(xb/sig)
-    IMR = cdf/pdf
+    
+    IMR = pdf/cdf
 
     E = xb *cdf + sig*pdf
     Epos = xb + sig*IMR
     return E, Epos
 
 def sim_data(theta, N:int): 
-    b = theta[:-1]
-    sig = theta[-1]
+    b = theta[:-1] # first K parameters are betas
+    sig = theta[-1] #last parameter is sigma
     K=b.size
 
     # FILL IN : x will need to contain 1s (a constant term) and randomly generated variables
@@ -71,7 +73,7 @@ def sim_data(theta, N:int):
     oo = np.ones((N,1))
     x  = np.hstack([oo,xx])
 
-    eps = np.random.normal(size=N)
+    eps = np.random.normal(loc=0, scale = sig, size=(N,))
     y_lat=  x @ b + eps
     #print("y_lat.shape:", y_lat.shape)
     #print("eps shape", eps.shape)
